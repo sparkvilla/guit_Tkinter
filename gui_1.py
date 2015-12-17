@@ -1,5 +1,7 @@
 import Tkinter as tk
 
+#http://python-textbok.readthedocs.org/en/latest/Classes.html
+
 class MyFirstGUI:
     def __init__(self, master):
         self.master = master
