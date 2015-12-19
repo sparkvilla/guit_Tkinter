@@ -50,3 +50,5 @@ helpmenu.add_command(label='Contact')
 helpmenu.add_command(label='More')
 menubar.add_cascade(label='Help',menu=helpmenu)
 
+mGui.config(menu=menubar)
+mGui.mainloop()
