@@ -2,11 +2,13 @@ import numpy as np
 import matplotlib.pylab as plt
 from glob import glob
 from datetime import datetime
+import re
 
 #############################################################
 ################## Text files ###############################
 #############################################################
 
+# This file can be used as standalone version or being used as module in gui_raman_g
 
 def get_samples(li_name):
     """Takes a list of files. 
@@ -26,7 +28,7 @@ def get_samples(li_name):
             samples.append(lin2[i].replace('"','').split(',')[0])
     return samples
                                                              
-             
+
 def extract_area(li_name):
     """Take a list of files.
        Use helper function (get_samples) to extract time and area of txt files.
@@ -44,7 +46,9 @@ def extract_area(li_name):
         
 def make_datetime(lst):
     """Used as a key in lambda function to sort the files"""
-    date_str = lst.split('_')[1]
+    reg = r'\d+\-\d+\-\d+'
+    date_str=re.findall(reg, lst)[1]
+    #date_str = lst.split('_')[4]
     return datetime.strptime(date_str, '%H-%M-%S')
 
 def conv_inmin(lst):
@@ -75,7 +79,6 @@ def ev_mis(lst):
             #time and areas
     return lst_numpy[0], lst_numpy[1:]
 
-
 def ref(lst_npareas, lst_samples):
     """Takes the list of numpy areas and the list of samples and zip them 
        in a list of tuples of length = len(np1)"""
@@ -83,7 +86,21 @@ def ref(lst_npareas, lst_samples):
     for i in range(0,len(lst_npareas)):
         li1.append(zip([lst_samples[i]]*len(lst_npareas[i]),lst_npareas[i]))
     return li1
-         
+
+def normalize(lst_npareas):
+    """ Takes the list containing numpy areas.
+        Normalize by the maximum each numpy array.
+        If max=0 do not mormalize the array.
+        Return a list of normalized and not normalize numpy arrays."""
+    lst_npareas_n = [np.zeros(len(lst_npareas[0])) for _ in xrange(len(lst_npareas))]
+    for i in range(0,len(lst_npareas)):
+        for k in range(0, len(lst_npareas[i])):
+            if max(lst_npareas[i])!=0:
+                lst_npareas_n[i][k] = (lst_npareas[i][k]/max(lst_npareas[i]))
+            else:
+                lst_npareas_n[i][k] = lst_npareas[i][k]
+    return lst_npareas_n
+                  
 if __name__ == "__main__":
 
     # Dump files into a list and sort them in time order
@@ -98,21 +115,21 @@ if __name__ == "__main__":
     # Make up numpy time and numpy areas
     time_numpy, areas_numpy = ev_mis(areas)
     
+    # Normalize array (if max=0 do not normalize)        
+    areas_numpy_n = normalize(areas_numpy)
+    
+    #[[k/max(sublist) for k in sublist] for sublist in areas_numpy if max(sublist)==0]
+    
     # Zip sample names with areas
     ltp = ref(areas_numpy,samples)
     
-    # Dict comprehension
-    #ltp1 = ref(H2_f, 'H2')
-    #ltp2 = ref(CO2_f, 'CO2')
-    #ltp3 = ref(CO_f, 'CO')
-    #ltp4 = ref(CH4_f, 'CH4')
-    d = {v:(ltp[i][k]) for i in range(0,len(ltp)) for k,v in enumerate(time_numpy.tolist())}
-
-    #d = {}
-    #for i in range(0,len(ltp)):
-    #    for k,v in enumerate(time_numpy.tolist()):
-    #        d[v] = ltp[i][k]
+    # Dictionary
+    d = {}
+    for i in range(0,len(ltp)):
+        for k,v in enumerate(np.round(time_numpy.tolist(),2)):
+            d.setdefault(v, []).append(ltp[i][k])
     
+
     
 #plt.figure(1)
 #plt.title('Normalized Area')
