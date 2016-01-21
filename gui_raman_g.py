@@ -8,10 +8,13 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg,NavigationToolba
 import Tkinter as tk
 import tkFileDialog
 import os
+import re
 
-import functions_raman_prova as rt
+import functions_raman_g as rt
 from glob import glob
 from datetime import datetime
+
+# This file has to be used together with functions_raman_g (in the same folder)
 
 class Plot(object):
 
@@ -52,7 +55,9 @@ class Plot(object):
         
         def make_datetime(lst):
            """Used as a key in lambda function"""
-           date_str = lst.split('_')[4]
+           reg = r'\d+\-\d+\-\d+'
+           date_str=re.findall(reg, lst)[1]
+           #date_str = lst.split('_')[4]
            return datetime.strptime(date_str, '%H-%M-%S')
         
         sorted_txt = sorted(file_txt, key=make_datetime)
@@ -62,33 +67,39 @@ class Plot(object):
         # Make up numpy time and numpy areas
         self.time_numpy, self.areas_numpy = rt.ev_mis(areas)
         # Normalized numpy areas
-        self.areas_numpy_n = [[k/max(sublist) for k in sublist] for sublist in self.areas_numpy]
-    
+        self.areas_numpy_n = rt.normalize(self.areas_numpy)
+        # Listbox
         for item in np.round(self.time_numpy,2):
             self.listbox.insert(tk.END,item)
-        
+        # Plot original data
         for i in range(0, len(self.areas_numpy)):
             self.ax.plot(self.time_numpy,self.areas_numpy[i],label=i)
-            self.ax.legend()
-        
+            self.ax.legend(prop={'size':8})
+        # Plot normalized data
         for i in range(0, len(self.areas_numpy_n)):
             self.ax1.plot(self.time_numpy,self.areas_numpy_n[i])
         
+        ######## Create sample labels ###########################################
+        self.lbl_samples = []
         for i,v in enumerate(self.samples):
-            tk.Label(self.window, text=v).grid(row=20+i,column=0,sticky=tk.W)
+            self.lbl_samples.append(tk.Label(self.window, text=v))
+        for i,v in enumerate(self.lbl_samples):
+            v.grid(row=20+i,column=0,sticky=tk.W)
         
-        self.lbl_areas = [ ]
+        ######## Create default labels values for original area #################
+        self.lbl_areas = []
         for i in range(0, len(self.samples)):
-            lbl=tk.IntVar()
-            lbl.set(0)
-            self.lbl_areas.append(tk.Label(self.window,textvariable=lbl).grid(row=20+i,column=1,sticky=tk.W))    
+            self.lbl_areas.append(tk.Label(self.window,text="0"))
+        for i,v in enumerate(self.lbl_areas):
+            v.grid(row=20+i,column=1,sticky=tk.W) 
         
-        #self.lbl_areas_n = [0]*len(self.samples)
-        #for i in range(0, len(self.samples)):
-        #    lbl_n = tk.IntVar()
-        #    lbl_n.set(0)
-        #    self.lbl_areas_n[i] = tk.Label(self.window,textvariable=lbl_n).grid(row=20+i,column=2,sticky=tk.W)  
-                
+        ######## Create default zero values for normalized area #################
+        self.lbl_areas_n = []
+        for i in range(0, len(self.samples)):
+            self.lbl_areas_n.append(tk.Label(self.window,text="0"))
+        for i,v in enumerate(self.lbl_areas_n):
+            v.grid(row=20+i,column=2,sticky=tk.W)
+         
         self.canvas.draw()
 
     def Print_area(self, event):
@@ -101,9 +112,10 @@ class Plot(object):
         # Zip sample names with areas
         ltp = rt.ref(self.areas_numpy,self.samples)
         
-        # Zip sample names with areas
+        # Zip sample names with normalized areas
         ltp_n = rt.ref(self.areas_numpy_n,self.samples)
         
+        ########## Original data ####################################
         self.d = {}
         for i in range(0,len(ltp)):
             for k,v in enumerate(np.round(self.time_numpy.tolist(),2)):
@@ -113,22 +125,21 @@ class Plot(object):
         for i in range(0, len(self.samples)):
             lbl_areas_val[i] = self.d[value][i][1]
         
-        for i,v in enumerate(self.lbl_areas): 
-            v.set(np.round(lbl_areas_val[i],2))
+        for i in range(0, len(self.samples)):
+            self.lbl_areas[i].configure(text=np.round(lbl_areas_val[i],2))    
         
-        
-        #self.d_n = {}
-        #for i in range(0,len(ltp_n)):
-        #    for k,v in enumerate(np.round(self.time_numpy.tolist(),2)):
-        #        self.d_n.setdefault(v, []).append(ltp_n[i][k])
-        #        
-        #lbl_areas_n_val = [0]*len(self.samples)
-        #for i in range(0, len(self.samples)):
-        #    lbl_areas_n_val[i] = self.d_n[value][i][1]
-        #                               
-        #for i,v in enumerate(self.lbl_areas_n):
-        #    v.set(np.round(lbl_areas_n_val[i],2))
-            
+        ########## Normalized data ####################################
+        self.d_n = {}
+        for i in range(0,len(ltp_n)):
+            for k,v in enumerate(np.round(self.time_numpy.tolist(),2)):
+                self.d_n.setdefault(v, []).append(ltp_n[i][k])
+                
+        lbl_areas_n_val = [0]*len(self.samples)
+        for i in range(0, len(self.samples)):
+            lbl_areas_n_val[i] = self.d_n[value][i][1]
+
+        for i in range(0, len(self.samples)):
+            self.lbl_areas_n[i].configure(text=np.round(lbl_areas_n_val[i],2))   
     
     def Clear(self):
         self.ax.clear()
@@ -137,14 +148,14 @@ class Plot(object):
         self.ax1.grid()
         self.canvas.draw()
         
-        self.lb6_val.set(0)
-        self.lb7_val.set(0)
-        self.lb8_val.set(0)
-        self.lb9_val.set(0)
-        self.lb10_val.set(0)
-        self.lb11_val.set(0)
-        self.lb12_val.set(0)
-        self.lb13_val.set(0)
+        for i in range(0, len(self.samples)):
+            self.lbl_samples[i].destroy()
+        
+        for i in range(0, len(self.samples)):
+            self.lbl_areas[i].destroy()
+        
+        for i in range(0, len(self.samples)):
+            self.lbl_areas_n[i].destroy() 
         
         self.listbox.delete(0, tk.END)
     
@@ -152,7 +163,10 @@ class Plot(object):
         f = tkFileDialog.asksaveasfilename()
         if f is None:
             return
-        out = np.column_stack((self.np_time,self.H2_f,self.CO2_f,self.CO_f,self.CH4_f,self.H2_f_n,self.CO2_f_n,self.CO_f_n,self.CH4_f_n))
+        out_o = np.asarray(self.areas_numpy)
+        out_n = np.asarray(self.areas_numpy_n)
+
+        out = np.column_stack((self.time_numpy,out_o.T,out_n.T))
         np.savetxt(f, out, fmt='%1.6f',delimiter=" ")
     
     def Quit(self):
